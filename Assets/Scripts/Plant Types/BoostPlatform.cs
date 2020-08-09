@@ -13,12 +13,6 @@ public class BoostPlatform : MonoBehaviour
         _boostPlant = transform.parent.GetComponent<BoostPlant>();
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-
     //if collider is entered, BOOST the gameobject up!
     void OnTriggerEnter2D(Collider2D other)
     {

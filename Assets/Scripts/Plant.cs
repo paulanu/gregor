@@ -1,8 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using UnityEngine;
-
+﻿
+// defines all plants
 public interface Plant
 {
     /// <summary>
