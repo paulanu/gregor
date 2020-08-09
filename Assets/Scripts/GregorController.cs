@@ -1,26 +1,60 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 public class GregorController : MonoBehaviour
 {
+    [Tooltip("Controlling Gregor's jump height")]
     [SerializeField] private float jumpForce = 200f;
+    [Tooltip("Controlling Gregor's movement speed")]
     [SerializeField] private float movementSpeed = 400f;
+    
+    [Tooltip("Input what is used as a Gregor's ground check")]
     [SerializeField] private Transform groundedCheck;
+    [Tooltip("How many units around the ground check to search for ground.")]
     [SerializeField] private float groundedRadius = .2f;
+    
+    [Tooltip("Which layers are ground?")]
     [SerializeField] private LayerMask groundLayers;
+    [Tooltip("Which layers are plants?")]
     [SerializeField] private LayerMask plantLayers;
-    [SerializeField] bool useFixedJump;
-    [SerializeField] private GameObject plantCheck;
+    
+    [Tooltip("Check to toggle a fixed jump.")]
+    [SerializeField] private bool useFixedJump;
+    
+    [Tooltip("What is used to check for plants when Gregor is watering.")]
+    [SerializeField] private Transform plantCheck;
+    [Tooltip("Visual component so you can see :)")]
+    [SerializeField] private bool hidePlantCheckVisual;
+    
+    [Tooltip("How long is Gregor paused while he is watering? In seconds.")]
+    [SerializeField] private float wateringTime = 1f; 
 
+    // components
     private Rigidbody2D _rigidbody;
     private SpriteRenderer _spriteRenderer;
     private ParticleSystem _waterParticles;
     private Transform _transform; 
+
+    // axis of movement
     private float _movementForce;
+
+    // used for keeping track of gregor's jump
     private bool _jump;
+    private bool _inJump;
+    private bool _jumpAllowed; 
+
+    // keep track of watering
     private bool _water;
-    
+
+    // pause player control of gregor - used for watering, etc, playing animations
+    private bool _freezeControl;
+    private float _startFreezeTime;
+
+    // getting plant check from child obj
+    private SpriteRenderer _plantCheckVisual;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -30,13 +64,21 @@ public class GregorController : MonoBehaviour
         _transform = GetComponent<Transform>(); 
         _movementForce = 0f;
         _jump = false;
-        _water = false; 
+        _inJump = false;
+        _jumpAllowed = true;
+        _water = false;
+        _plantCheckVisual = plantCheck.GetComponent<SpriteRenderer>(); 
     }
 
-    // Update is called once per frame
+    // get inputs from player
     void Update()
     {
-        //get inputs from player
+        if ((Time.time - _startFreezeTime) > wateringTime)
+        {
+            _freezeControl = false;
+            Debug.Log(Time.time - _startFreezeTime + " " + wateringTime);
+        }
+
         _movementForce = Input.GetAxis("Horizontal");
 
         if (Input.GetButtonDown("Jump") && IsGrounded())
@@ -48,13 +90,18 @@ public class GregorController : MonoBehaviour
         {
             _water = true;
         }
+
+        // hide plant check visual if desired
+        if (hidePlantCheckVisual) _plantCheckVisual.color = Color.clear;
+        else _plantCheckVisual.color = Color.green; 
     }
 
+    // use inputs to do appropriate actions
     private void FixedUpdate()
     {
-        //use inputs to move and jump
-        Move();
-        if (_jump)
+        if (!_freezeControl)
+            Move();
+        if (_jump && _jumpAllowed) 
         {
             Jump();
         }
@@ -66,19 +113,20 @@ public class GregorController : MonoBehaviour
 
     private void Move()
     {
-        if (useFixedJump && !IsGrounded())
+        // fixed jump 
+        if (useFixedJump && !IsGrounded() && _inJump)
         {
-            //account for direction
+            // account for direction
             float horizontalVelocity = movementSpeed;
 
-            horizontalVelocity *= _spriteRenderer.flipX == true ?  -1 : 1;
+            horizontalVelocity *= _transform.localScale.x < 0 ?  -1 : 1;
 
-            //apply fixed velocity, no air control 
+            // apply fixed velocity, no air control 
             _rigidbody.velocity = new Vector2(horizontalVelocity, _rigidbody.velocity.y);
             return; 
         }
 
-        //flip sprite if moving - use scale so colliders/particles also affected
+        // flip sprite if moving - use scale so colliders/particles also affected
         if (_movementForce < 0 && _transform.localScale.x > 0)
         {
             _transform.localScale = new Vector3(_transform.localScale.x * -1, _transform.localScale.y, _transform.localScale.z); 
@@ -88,28 +136,66 @@ public class GregorController : MonoBehaviour
             _transform.localScale = new Vector3(_transform.localScale.x * -1, _transform.localScale.y, _transform.localScale.z);
         }
 
-        //apply that movement
+        // apply that movement
         _rigidbody.velocity = new Vector2(_movementForce * movementSpeed, _rigidbody.velocity.y);
     }
 
-    //literally just jumping
+    // literally just jumping
     private void Jump()
     {
-        _jump = false; 
-        _rigidbody.AddForce(Vector2.up * jumpForce);
+        _jump = false;
+        _inJump = true;
+
+        // only jump if nothing is currently boosting gregor up (No Super Jumps!!!!)
+        if (_rigidbody.velocity.y <= 0)
+            _rigidbody.AddForce(Vector2.up * jumpForce);
     }
 
-    //turn on water particles, check for plants being watered
+    // returns if Gregor has jumped lol
+    public bool hasGregorJumped()
+    {
+        return _inJump; 
+    }
+
+    // this is used when an outside force manipulates Gregor's movement, and you don't want jumping to fuck it up
+    // for example: when both the force and the jump are registered at the same time, then they can multiply if the jump comes after
+    public void pauseJump()
+    {
+        _jump = false;
+        _inJump = false;
+        _jumpAllowed = false; 
+    }
+
+    // turn on water particles, check for plants being watered
     private void Water()
     {
-        _water = false;       
+        // The player can't move Gregor until he is done watering
+        _freezeControl = true;
+        _startFreezeTime = Time.time;
+        removeHorizontalVelocity(); 
+
+        _water = false;
         _waterParticles.Play();
-        //Collider[] hitColliders = Physics.OverlapBox(plantCheck.transform.position, plantCheck.GetComponent<BoxCollider2D>().size, Quaternion.identity, plantLayers);
-        //foreach (Collider c in hitColliders)
-        //    Debug.Log(c.name);
+
+        // check for plants being watered
+        // plantcheck sprite is 100x100, 1 unit per 100 pixels, so plant check scale correlates 1:1 with world scale, BUT multiplied by Gregor's parent scale to affect for that. I think??? 
+        float plantCheckWorldWidth = Mathf.Abs(plantCheck.transform.localScale.x *  transform.localScale.x);
+        float plantCheckWorldHeight = Mathf.Abs(plantCheck.transform.localScale.y * transform.localScale.y);
+        
+        // now get all plant colliders in the plantcheck bounds, and activate them
+        Collider2D[] hitColliders = Physics2D.OverlapBoxAll(plantCheck.transform.position, new Vector2(plantCheckWorldWidth, plantCheckWorldHeight), 0, plantLayers);
+        foreach (Collider2D c in hitColliders) //activate those plants
+            c.gameObject.GetComponent<Plant>().Activate();
 
     }
 
+    // set gregor's horizontal movement to 0
+    private void removeHorizontalVelocity()
+    {
+        _rigidbody.velocity = new Vector2(0, _rigidbody.velocity.y); 
+    }
+
+    // Check if Gregor is on the ground
     private bool IsGrounded()
     {
         Collider2D[] colliders = Physics2D.OverlapCircleAll(groundedCheck.position, groundedRadius, groundLayers);
@@ -118,6 +204,8 @@ public class GregorController : MonoBehaviour
         {
             if (colliders[i].gameObject != gameObject)
             {
+                //grounded
+                _inJump = false; 
                 return true;
             }
         }

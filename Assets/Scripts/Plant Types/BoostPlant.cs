@@ -4,36 +4,43 @@ using UnityEngine;
 
 public class BoostPlant : MonoBehaviour, Plant
 {
-    [SerializeField] Sprite on, off;
-    [SerializeField] BoxCollider2D bounceCollider;  
+    public float boostForce = 300; 
 
-    private SpriteRenderer _spriteRenderer; 
+    private BoxCollider2D _bounceCollider;  
+    private SpriteRenderer _spriteRenderer;
+    private Animator _animator; 
 
     // Start is called before the first frame update
     void Start()
     {
-        _spriteRenderer = GetComponent<SpriteRenderer>();
-        bounceCollider.enabled = false; 
+        _spriteRenderer = this.GetComponent<SpriteRenderer>();
+        _bounceCollider = this.GetComponent<BoxCollider2D>();
+        _animator = this.GetComponent<Animator>(); 
     }
 
     // Update is called once per frame
     void Update()
     {
-
+        //int w = _animator.GetCurrentAnimatorClipInfo(0).Length;
+        //string[] clipName = new string[w];
+        //for (int i = 0; i < w; i += 1)
+        //{
+        //    clipName[i] = _animator.GetCurrentAnimatorClipInfo(0)[i].clip.name;
+        //    Debug.Log(clipName[i]);
+        //}
     }
 
     public void Activate()
     {
-        Debug.Log("activated!");
-        _spriteRenderer.sprite = on;
-        bounceCollider.enabled = true;
+
+        _animator.SetBool("Activated", true); 
+
     }
 
     public void Deactivate()
     {
-        Debug.Log("deactivated!");
-        _spriteRenderer.sprite = off;
-        bounceCollider.enabled = false;
+        _animator.SetBool("Activated", false);
+
     }
 
     public void OnUse()
