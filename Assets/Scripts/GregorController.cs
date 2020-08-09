@@ -121,7 +121,7 @@ public class GregorController : MonoBehaviour
     {
         if (!_freezeControl)
             Move();
-        if (_jump && _jumpAllowed) 
+        if (_jump && !_freezeControl) 
         {
             Jump();
         }
