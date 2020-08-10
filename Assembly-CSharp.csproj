@@ -57,12 +57,14 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\Plant Types\BoostPlatform.cs" />
     <Compile Include="Assets\Scripts\GregorController.cs" />
-    <Compile Include="Assets\Scripts\Plant.cs" />
+    <Compile Include="Assets\Scripts\Plant Types\Plant.cs" />
+    <Compile Include="Assets\Scripts\EditorClasses\CatchCo.cs" />
     <Compile Include="Assets\Scripts\Plant Types\BoostPlant.cs" />
+    <Compile Include="Assets\Scripts\EditorClasses\ShowOnlyAttribute.cs" />
+    <Compile Include="Assets\Scripts\Water Sources\Puddle.cs" />
     <Compile Include="Assets\Controller.cs" />
     <Compile Include="Assets\Scripts\Water Sources\WaterSource.cs" />
-    <Compile Include="Assets\Scripts\ShowOnlyAttribute.cs" />
-    <Compile Include="Assets\Scripts\Water Sources\Puddle.cs" />
+    <Compile Include="Assets\Scripts\WaterActions.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="UnityEngine">

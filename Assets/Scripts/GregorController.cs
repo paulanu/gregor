@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using UnityEngine;
 
@@ -30,7 +31,9 @@ public class GregorController : MonoBehaviour
     [SerializeField] private Transform interactCheck;
     [Tooltip("Visual component so you can see :)")]
     [SerializeField] private bool hideInteractCheckVisual;
-    
+    [Tooltip("Place in front of Gregor - used to check if he is watering off of a ledge.")]
+    [SerializeField] private Transform ledgeCheck;
+
     [Tooltip("How long is Gregor paused while he is watering? In seconds.")]
     [SerializeField] private float wateringTime = 1f; 
 
@@ -190,6 +193,7 @@ public class GregorController : MonoBehaviour
         _jumpAllowed = false; 
     }
 
+    // check for water sources, get water from them. 
     private void CollectWater()
     {
         // The player can't move Gregor until he is done collecting water
@@ -198,21 +202,25 @@ public class GregorController : MonoBehaviour
 
         _collectWater = false; 
 
-        //check for water in front of gregor
+        // check for water in front of gregor
         Collider2D[] hitColliders = InteractWithObjectsInLayer(waterSourceLayers);
 
         int collectedWater = 0; 
-        foreach (Collider2D c in hitColliders) //GIT that water 
+        foreach (Collider2D c in hitColliders) // GIT that water 
         {
             collectedWater += c.gameObject.GetComponent<WaterSource>().GetWater();
         }
 
-        // if gregor has collected water (and doesn't already have water), play the water anim
-        if (collectedWater > 0 && waterQuantity == 0)
-            _animator.SetBool("CollectedWater", true);
+        // if gregor collected water, update water quantity
+        if (collectedWater > 0)
+        {
+            // if gregor doesn't already have water, play the water anim
+            if (waterQuantity == 0)
+                _animator.SetBool("CollectedWater", true);
 
-        // now change the water quantity 
-        waterQuantity = Math.Min(collectedWater, maxWater);
+            waterQuantity = Math.Min(collectedWater + waterQuantity, maxWater);
+
+        }
     }
 
     // turn on water particles, check for plants being watered
@@ -224,19 +232,39 @@ public class GregorController : MonoBehaviour
 
         _water = false;
 
+        // only water plants if you have enough water!
         if (waterQuantity > 0)
         {
-            waterQuantity--; 
-            _waterParticles.Play();
+            waterQuantity--;
 
             // play watering anim
+            _waterParticles.Play();
             _animator.SetBool("CollectedWater", false);
 
             // check for plants being watered
-            Collider2D[] hitColliders = InteractWithObjectsInLayer(plantLayers);
+            Collider2D[] plants = InteractWithObjectsInLayer(plantLayers);
 
-            foreach (Collider2D c in hitColliders) //activate those plants
-                c.gameObject.GetComponent<Plant>().Activate();
+            // account for gregor standing on a ledge and watering plants below
+            RaycastHit2D isThereGroundBelow = Physics2D.Raycast(ledgeCheck.position, Vector2.down, 1000, groundLayers);
+
+            if (isThereGroundBelow)
+            {
+                Debug.Log(isThereGroundBelow.collider.name);
+
+                // I use the waterLedgeCheck scale as my box size so I have a visual aid 
+                // sprite is 100x100, 1 unit per 100 pixels, so ledge check scale correlates 1:1 with world scale, BUT multiplied by Gregor's parent scale to affect for that. I think??? 
+                float ledgeCheckWorldWidth = Mathf.Abs(ledgeCheck.transform.localScale.x * transform.localScale.x); 
+                float ledgeCheckWorldHeight = Mathf.Abs(ledgeCheck.transform.localScale.y * transform.localScale.y);
+                
+                // now get all colliders in the ledgeCheck bounds
+                Collider2D[] ledgePlants = Physics2D.OverlapBoxAll(isThereGroundBelow.point, new Vector2(ledgeCheckWorldWidth, ledgeCheckWorldHeight), 0, plantLayers);
+
+                plants = plants.Concat<Collider2D>(ledgePlants).ToArray();
+            }
+
+            foreach (Collider2D plant in plants) //activate those plants
+                plant.gameObject.GetComponent<Plant>().Activate();
+
         }
         else
             Debug.Log("aint got no water!!!!!");
@@ -245,19 +273,24 @@ public class GregorController : MonoBehaviour
 
     private Collider2D[] InteractWithObjectsInLayer(LayerMask layerMask)
     {
+        // box size based on interactCheck scale so I have a visual aid
         // interactCheck sprite is 100x100, 1 unit per 100 pixels, so interact check scale correlates 1:1 with world scale, BUT multiplied by Gregor's parent scale to affect for that. I think??? 
         float interactCheckWorldWidth = Mathf.Abs(interactCheck.transform.localScale.x * transform.localScale.x);
         float interactCheckWorldHeight = Mathf.Abs(interactCheck.transform.localScale.y * transform.localScale.y);
 
-        // now get all colliders in the interactCheck bounds, and activate them
+        // now get all colliders in the interactCheck bounds
         return Physics2D.OverlapBoxAll(interactCheck.transform.position, new Vector2(interactCheckWorldWidth, interactCheckWorldHeight), 0, layerMask);
     }
 
     // use if you want to remove player control of gregor. 
     public void FreezeControlOfGregor()
     {
-        _freezeControl = true;
-        _startFreezeTime = Time.time;
+        // freezes can't stack if you spam buttons !
+        if (!_freezeControl)
+        {
+            _freezeControl = true;
+            _startFreezeTime = Time.time;
+        }
     }
 
     // set gregor's horizontal movement to 0
@@ -267,7 +300,7 @@ public class GregorController : MonoBehaviour
     }
 
     // Check if Gregor is on the ground
-    private bool IsGrounded()
+    public bool IsGrounded()
     {
         Collider2D[] colliders = Physics2D.OverlapCircleAll(groundedCheck.position, groundedRadius, groundLayers);
      
