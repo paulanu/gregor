@@ -1,19 +1,43 @@
 ﻿
 // defines all plants
-public interface Plant
+using UnityEngine;
+using CatchCo;
+
+public abstract class Plant : MonoBehaviour
 {
-    /// <summary>
-    /// What happens when Gregor uses the plant? Define "use" here. 
-    /// </summary>
-    void OnUse();
+    [Header("For level design use only. Set BEFORE hitting play.")]
+    [SerializeField] protected bool activated; // THIS IS PURELY FOR USE OF LEVEL DESIGNER
 
-    /// <summary>
-    /// Activate the plant. 
-    /// </summary>
-    void Activate();
+    protected Animator _animator;
 
-    /// <summary>
-    /// Deactivate the plant. 
-    /// </summary>
-    void Deactivate(); 
+    // Start is called before the first frame update
+    protected virtual void Start()
+    {
+        _animator = this.GetComponent<Animator>();
+
+        if (activated)
+        {
+            Activate();
+        }
+    }
+
+    [ExposeMethodInEditor]
+    public virtual void Activate()
+    {
+
+        _animator.SetBool("Activated", true);
+        activated = true;
+    }
+
+    [ExposeMethodInEditor]
+    public virtual void Deactivate()
+    {
+        _animator.SetBool("Activated", false);
+        activated = false;
+    }
+
+    public virtual void OnUse()
+    {
+        Deactivate();
+    }
 }

@@ -98,6 +98,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cf31a6bf786a6c4dbd72bef6c682998, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  activated: 1
   boostForce: 300
 --- !u!61 &5044966377891005538
 BoxCollider2D:
@@ -156,7 +157,7 @@ GameObject:
   - component: {fileID: 5044966377964826343}
   - component: {fileID: 5044966377964826342}
   m_Layer: 0
-  m_Name: BoostPlatform
+  m_Name: BouncePlatform
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
